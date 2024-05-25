@@ -11,6 +11,7 @@ jobs:
         run: npm install
       - name: Lint
         id : lint-step
+        #continue-on-error: true
         run: npm run lint
       - name: check-lint
         if: failure() && steps.lint-step.outcome == 'failure'
@@ -33,27 +34,39 @@ jobs:
         with:
           context: ./
           push: true
-          dockerfile: ./Dockerfile
+          dockerfile: ./Dockerfile   # Specify the path to your Dockerfile here
           tags: nbo2001/webacademy:latest
   deploy:
-    needs: build_docker
+    needs: lint
+    name: Setup Gcloud Account
     runs-on: ubuntu-latest
     environment: wagcp_deploy
     env:
-      IMAGE_NAME: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/webcicd/webacademy:latest
+      IMAGE_NAME: gcr.io/${{ secrets.GCP_PROJECT_ID }}/webacademy:latest
     steps:
+      # Git checkout
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Login to GCP
+
+      # Login to GCP
+      - name: LoginCCP
         uses: google-github-actions/setup-gcloud@v0
         with:
           service_account_key: ${{ secrets.GCP_CREDENTIALS }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      # gcloud configure docker
       - name: Configure Docker
         run: gcloud auth configure-docker --quiet
+
+      # build image
       - name: Build Docker image
-        run: docker build -t ${{ env.IMAGE_NAME }} .
+        run: docker build -t $IMAGE_NAME .
+
+      # push image to registry
       - name: Push Docker image
-        run: docker push ${{ env.IMAGE_NAME }}
+        run: docker push $IMAGE_NAME
+
+      # deploy image
       - name: Deploy Docker image
-        run: gcloud run deploy webcicd --image ${{ env.IMAGE_NAME }} --region us-central1 --memory 128Mi --min-instances 0 --max-instances 1 --platform managed --port 8080 --allow-unauthenticated
+        run: gcloud run deploy webcicd --image $IMAGE_NAME --region us-central1 --memory 128Mi --min-instances 0 --max-instances 1 --platform managed --port 8080 --allow-unauthenticated
