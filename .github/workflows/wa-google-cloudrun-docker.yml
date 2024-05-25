@@ -11,7 +11,6 @@ jobs:
         run: npm install
       - name: Lint
         id : lint-step
-        #continue-on-error: true
         run: npm run lint
       - name: check-lint
         if: failure() && steps.lint-step.outcome == 'failure'
@@ -34,39 +33,27 @@ jobs:
         with:
           context: ./
           push: true
-          dockerfile: ./Dockerfile   # Specify the path to your Dockerfile here
+          dockerfile: ./Dockerfile
           tags: nbo2001/webacademy:latest
   deploy:
-    needs: lint
-    name: Setup Gcloud Account
+    needs: build_docker
     runs-on: ubuntu-latest
     environment: wagcp_deploy
     env:
-      IMAGE_NAME: gcr.io/${{ secrets.GCP_PROJECT_ID }}/webacademy:latest
+      IMAGE_NAME: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/webcicd/webacademy:latest
     steps:
-      # Git checkout
       - name: Checkout
         uses: actions/checkout@v3
-
-      # Login to GCP
-      - name: LoginCCP
+      - name: Login to GCP
         uses: google-github-actions/setup-gcloud@v0
         with:
           service_account_key: ${{ secrets.GCP_CREDENTIALS }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-
-      # gcloud configure docker
       - name: Configure Docker
         run: gcloud auth configure-docker --quiet
-
-      # build image
       - name: Build Docker image
-        run: docker build -t us-central1-docker.pkg.dev/deployactions-424402/webcicd/webacademy:latest .
-
-      # push image to registry
+        run: docker build -t ${{ env.IMAGE_NAME }} .
       - name: Push Docker image
-        run: docker push us-central1-docker.pkg.dev/deployactions-424402/webcicd/webacademy:latest
-
-      # deploy image
+        run: docker push ${{ env.IMAGE_NAME }}
       - name: Deploy Docker image
-        run: gcloud run deploy webcicd --image us-central1-docker.pkg.dev/deployactions-424402/webcicd/webacademy:latest --region us-central1 --memory 128Mi --min-instances 0 --max-instances 1 --platform managed --port 8080 --allow-unauthenticated
+        run: gcloud run deploy webcicd --image ${{ env.IMAGE_NAME }} --region us-central1 --memory 128Mi --min-instances 0 --max-instances 1 --platform managed --port 8080 --allow-unauthenticated
