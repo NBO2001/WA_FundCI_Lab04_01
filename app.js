@@ -5,7 +5,7 @@ const express = require('express');
 const app = express();
 
 app.get('/', (req, res) => {
-  res.send('Bem vindos ao WebAcademy!!');
+  res.send('Bem vindos ao WebAcademy!! Fazendo o deploy na google cloud');
 });
 
 app.listen(8080, () => {
