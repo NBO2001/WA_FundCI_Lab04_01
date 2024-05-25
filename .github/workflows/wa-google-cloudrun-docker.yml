@@ -59,6 +59,15 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker --quiet
 
+      - name: Print IMAGE_NAME
+        run: echo ${{ env.IMAGE_NAME }}
+        
+      - name: Check Docker version
+        run: docker --version
+
+      - name: Check Buildx version
+        run: docker buildx version
+
       # build image
       - name: Build Docker image
         run: docker buildx build --platform linux/amd64 -t ${{ env.IMAGE_NAME }} .
